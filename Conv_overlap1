@@ -1,0 +1,98 @@
+#include<stdio.h>
+#include <stdlib.h>
+#include "fft.h"
+double* Conv_overlap1(double* h, double* x) {
+	int xi; 
+	int i,j,count=0;
+	int  Lx = _msize(x) / sizeof(double);
+    int M = _msize(h) / sizeof(double);
+	int L = 2048;//分段大小
+	int T ;//分段数
+	if (Lx%L == 0) {
+		T = Lx / L;
+	}
+	else {
+		T= Lx / L + 1;
+	}
+	int P = (T + 1)*L;//补零后的总数量
+	double* t = (double*)malloc(sizeof(double)*(M-1));
+	for (i = 0; i < M - 1; i++) {
+		t[i] = 0;
+	}
+	// 补足最后一个不足L的分段补零
+	double*  X = (double*)malloc(P * sizeof(double));
+	for (i = 0; i < P; i++) {
+		if (i < Lx)
+			X[i] = x[i];
+		else
+			X[i] = 0;
+	}
+	double* y = (double*)malloc(P * sizeof(double));
+	for (i = 0; i < P; i++) {
+		y[i] = 0;
+	}
+	int n = Lx - 1 + M ;
+
+	double* x_seg = (double*)malloc(sizeof(double)*(M - 1 + L));
+	complex Y1[N]; complex Y2[N]; complex Y[N];
+	for (i = 0; i < 2*L; i++) {
+		if (i < M) {
+			Y1[i].real = h[i];
+			Y1[i].img = 0;
+		}
+		else
+		{
+			Y1[i].real = 0;
+			Y1[i].img = 0;
+		}
+	}
+	initW(2 * L);
+	fft(Y1, 2 * L);//对Y1fft，得到Y1
+
+	for (i = 0; i < T+1; i++) {
+		xi = i * L;
+		for (j = 0; j < M - 1 + L; j++) {
+			if (j < M - 1) {
+				x_seg[j] = t[j];
+			}
+			else {
+				x_seg[j] = X[xi+count];
+				count++;
+			}
+		}
+		count = 0;
+		for (j = 0; j < M - 1; j++) {
+			t[j] = x_seg[L + j];
+		}
+		for (j = 0; j < 2* L; j++) {
+			if (j < M - 1 + L) {
+				Y2[j].real = x_seg[j];
+				Y2[j].img = 0;
+			}
+			else {
+				Y2[j].real = 0;
+				Y2[j].img = 0;
+			}
+		}
+		initW(2 * L);
+		fft(Y2, 2 * L);
+		//printf("%lg %lg\n", Y2[0].real, Y2[0].img);
+		for (j = 0; j < 2 * L; j++) {
+			Y[j].real = Y1[j].real*Y2[j].real - Y1[j].img*Y2[j].img;
+			Y[j].img= Y1[j].real*Y2[j].img + Y1[j].img*Y2[j].real;
+		}
+		
+		initW(2 * L);
+		ifft(Y, 2 * L);
+		//printf("%lg %lg\n", Y[2].real, Y[2].img);
+		 for (j = 0; j < L; j++) {
+			 y[xi + j] = Y[M + j-1].real;
+		 }
+		// printf("%lg\n", y[6143]);
+	}
+	double* Conv = (double*)malloc(sizeof(double)*(Lx+M - 1));
+	for (i = 0; i < Lx + M - 1; i++) {
+		Conv[i] = y[i];
+	}
+	return Conv;
+}
