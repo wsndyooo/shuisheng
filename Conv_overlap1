@@ -1,0 +1,83 @@
+#include<stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
+#include <malloc.h>
+#include "fft.h"
+
+int main()
+{
+	int num, r;
+	double d1,d2;
+	int  i;
+	FILE *f1 = fopen("G:\\data\\dynamic 1_1_1.txt", "r");//打开2024阶等波纹FIR滤波器
+	num = 0;
+	while (1) {
+		r = fscanf(f1, "%lf", &d1);
+		if (1 == r) {
+			num++;
+		}
+		else if (0 == r) {
+			fscanf(f1, "%*c");
+		}
+		else break;
+	}
+	printf("%d\n", num);
+	double* str1 = (double*)malloc(num * sizeof(double)); //申请文件长度的内存 
+	fseek(f1, 0, SEEK_SET); //恢复至文件指针至首地址 
+	num = 0;
+	while (1) {
+		r = fscanf(f1, "%lf", &d1);
+		if (1 == r) {
+			str1[num] = d1;
+			num++;
+		}
+		else if (0 == r) {
+			fscanf(f1, "%*c");
+		}
+		else break;
+	}
+	fclose(f1);
+	//free(str1); 
+
+	FILE *f2 = fopen("G:\\data\\Filter_8_14k.txt", "r");//打开2024阶等波纹FIR滤波器
+	num = 0;
+	while (1) {
+		r = fscanf(f2, "%lf", &d2);
+		if (1 == r) {
+			num++;
+		}
+		else if (0 == r) {
+			fscanf(f2, "%*c");
+		}
+		else break;
+	}
+	double* str2 = (double*)malloc(num * sizeof(double)); //申请文件长度的内存 
+	fseek(f2, 0, SEEK_SET); //恢复至文件指针至首地址 
+	num = 0;
+	while (1) {
+		r = fscanf(f2, "%lf", &d2);
+		if (1 == r) {
+			str2[num] = d2;
+			num++;
+		}
+		else if (0 == r) {
+			fscanf(f2, "%*c");
+		}
+		else break;
+	}
+	fclose(f2);
+	/*for (i = 0; i < 1659; i++) {
+		printf("%lg\n", str2[i]);
+	}*/
+	//free(str2); 
+
+	double* mon;
+	mon = Conv_overlap1(str2,str1);
+	//for (i = 0; i < 100; i++) {
+		printf("%lg\n", mon[200120]);
+	//}
+
+	system("pause");
+	return 0;
+}
