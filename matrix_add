@@ -1,0 +1,22 @@
+/*
+*	文件 名：矩阵加法
+*	描		述：用于两个矩阵相加
+*	作		者：金诸斌
+*	时		间：2019.11.14
+*/
+
+#include <stdio.h> 
+#include <math.h> 
+#include "matri.h"
+
+void matrix_add(double *A, double *B, double *C, int x, int y)
+{
+	int i, j;
+	for ( i = 0; i < x; i++)
+	{
+		for ( j = 0; j < y; j++)
+		{
+				C[i*y+j] += A[i*y+j] + B[i*y+j];
+		}
+	}
+}
