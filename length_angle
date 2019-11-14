@@ -1,0 +1,160 @@
+/*
+*	文件 名：坐标转换
+*	描		述：
+*	作		者：金诸斌	
+*	时		间：2019.11.14
+*/
+
+#include <stdio.h> 
+#include <math.h> 
+#include <stdlib.h> 
+#include "matri.h"
+
+int main()
+{
+	/** 输入参数
+	* a, b, r, 是第二节陀螺仪给的俯仰角，翻滚角，航向角
+	* a1, r1, a3, r3, 是第一节和第三节相对于第二节的俯仰角和横摇角
+	* i为头部水听器组信号最强的水听器编号，i可取1, 2, 3，对应水听器位置下，右，中
+	* j为尾部水听器组信号最强的水听器编号，i可取1, 2, 3，对应水听器位置下，右，中
+	* L1, L2, L3, 分别为前舱、中舱、后舱段长度（已知）
+	* d1是前舱水听器到前舱尾部的轴向距离（已知）
+	* d3是尾舱水听器到尾舱尾部的轴向距离（已知）
+	* R是环形水听器阵列半径（已知）
+	**/
+	/** 输出参数
+	* L为基线长度，A为基线俯仰角，B为基线横摇角
+	**/
+
+	// 参数输入
+
+
+	int a = 0, b = 0, r = 0;              //陀螺仪给出的俯仰角，翻滚角，航向角
+	int a1 = 0; double r1 = PI / 12;       //第一节相对于第二节的俯仰角和横摇角 -15度 < a1 < 15度     -15度 < r1 < 15度   角度以顺时针为正
+	int a3 = 0; double r3 = PI / 12;       //第三节相对于第二节的俯仰角和横摇角 -15度 < a3 < 15度       -15度 < r3 < 15度
+
+	int L2 = 1550, L3 = 1125;         //L2, L3, 为二节AUV的长度（已知）
+	int d1 = 714, d3 = 616;            //d1是前舱水听器到前舱尾部的轴向距离（已知）d3是尾舱水听器到尾舱尾部的轴向距离（已知）
+	int R = 297;								 //R是环形水听器阵列半径（已知）
+	int i = 1;									//i为头部水听器组信号最强的水听器编号，i可取1, 2, 3，对应水听器位置下，右，中
+	int j = 1;									//j为尾部水听器组信号最强的水听器编号，i可取1, 2, 3，对应水听器位置下，右，中
+	int x,y,k;
+
+	//旋转变换矩阵
+	double O[N][N] = { cos(r),-sin(r),0,sin(r),cos(r),0,0,0,1 };
+	double P[N][N] = { 1,0,0,0,cos(b),-sin(b),0,sin(b),cos(b) };
+	double Q[N][N] = { cos(a),0 ,sin(a),0,1,0,-sin(a),0,cos(a) };
+	double OP[N][N] = { 0 }, OPQ[N][N] = { 0 };
+	matrix_mul(&O[0][0], &P[0][0], &OP[0][0], N, N, N);
+	matrix_mul(&OP[0][0], &Q[0][0], &OPQ[0][0], N, N, N);//得到OPQ矩阵，即matlab中的MNQ矩阵
+
+	//6水听器在机体中舱坐标系下的坐标
+	double M1[N][N] = { cos(r1), -sin(r1), 0, sin(r1), cos(r1), 0, 0, 0, 1 };//计算*1矩阵
+	double M2[N][N] = { cos(r3), -sin(r3), 0, sin(r3), cos(r3), 0, 0, 0, 1 };//计算*2矩阵
+	double mon[N][1] = { L2,0,0 }; 
+
+	double mon1[N][1] = { d1,0,-R };//mon1为相乘的矩阵系数
+	double T1[N][1] = { 0 }; double T11[N][1] = { 0 };//T1,T11设置为一个中间变量
+	double t1[N][1] = { 0 };
+	matrix_mul(&M1[0][0], &mon1[0][0], &T1[0][0], N, N, 1);
+	matrix_add(&mon[0][0], &T1[0][0], &T11[0][0],N, 1);
+	matrix_mul(&OPQ[0][0], &T11[0][0], &t1[0][0], N, N, 1);//得到t1矩阵
+
+	double mon2[N][1] = { d1,-pow(2,0.5)*R / 2,pow(2,0.5)*R / 2 };//mon2为相乘的矩阵系数
+	double T2[N][1] = { 0 }; double T22[N][1] = { 0 };//T2,T22设置为一个中间变量
+	double t2[N][1] = { 0 };
+	matrix_mul(&M1[0][0], &mon2[0][0], &T22[0][0], N, N, 1);
+	matrix_add(&mon[0][0], &T2[0][0], &t2[0][0], N, 1);
+	matrix_mul(&OPQ[0][0], &T22[0][0], &t2[0][0], N, N, 1);//得到t2矩阵
+
+	double mon3[N][1] = { d1,pow(2,0.5)*R / 2,pow(2,0.5)*R / 2 };//mon3为相乘的矩阵系数
+	double T3[N][1] = { 0 }; double T33[N][1] = { 0 };//T3,T33设置为一个中间变量
+	double t3[N][1] = { 0 };
+	matrix_mul(&M1[0][0], &mon3[0][0], &T3[0][0], N, N, 1);
+	matrix_add(&mon[0][0], &T3[0][0], &T33[0][0], N, 1);
+	matrix_mul(&OPQ[0][0], &T33[0][0], &t3[0][0], N, N, 1);//得到t3矩阵
+
+	double T[N][N] = { 0 };//头部水听器组位置坐标
+	for (x = 0; x < N; x++) {
+		if (x == 0) {
+			for (y = 0; y < N; y++) {
+				T[x][y] = t1[y][0];
+			}
+		}
+		if (x == 1) {
+			for (y = 0; y < N; y++) {
+				T[x][y] = t2[y][0];
+			}
+		}
+		if (x == 2) {
+			for (y = 0; y < N; y++) {
+				T[x][y] = t3[y][0];
+			}
+		}
+	}
+
+	double MON[N][1] = { -L3 * cos(a3)*cos(r3),-L3 * cos(a3)*sin(r3),L3*sin(a3) };
+
+	double MON1[N][1] = { d3,0,-R };// MON1为相乘的矩阵系数
+	double W1[N][1] = { 0 }; double W11[N][1] = { 0 };// W1, W11设置为一个中间变量
+	double w1[N][1] = { 0 };
+	matrix_mul(&M2[0][0], &MON1[0][0], &W1[0][0], N, N, 1);
+	matrix_add(&MON[0][0], &W1[0][0], &W11[0][0], N, 1);
+	matrix_mul(&OPQ[0][0], &W11[0][0], &w1[0][0], N, N, 1);//得到w1矩阵
+
+	double MON2[N][1] = { d3,-pow(2,0.5)*R / 2,pow(2,0.5)*R / 2 };// MON2为相乘的矩阵系数
+	double W2[N][1] = { 0 }; double W22[N][1] = { 0 };// W2, W22设置为一个中间变量
+	double w2[N][1] = { 0 };
+	matrix_mul(&M2[0][0], &MON2[0][0], &W2[0][0], N, N, 1);
+	matrix_add(&MON[0][0], &W2[0][0], &W22[0][0], N, 1);
+	matrix_mul(&OPQ[0][0], &W22[0][0], &w2[0][0], N, N, 1);//得到w2矩阵
+
+	double MON3[N][1] = { d3,pow(2,0.5)*R / 2,pow(2,0.5)*R / 2 };// MON3为相乘的矩阵系数
+	double W3[N][1] = { 0 }; double W33[N][1] = { 0 };// W3, W33设置为一个中间变量
+	double w3[N][1] = { 0 };
+	matrix_mul(&M2[0][0], &MON3[0][0], &W3[0][0], N, N, 1);
+	matrix_add(&MON[0][0], &W3[0][0], &W33[0][0], N, 1);
+	matrix_mul(&OPQ[0][0], &W33[0][0], &w3[0][0], N, N, 1);//得到w3矩阵
+
+	double W[N][N] = { 0 };//尾部水听器组位置坐标
+	for (x = 0; x < N; x++) {
+		if (x == 0) {
+			for (y = 0; y < N; y++) {
+				W[x][y] = w1[y][0];
+			}
+		}
+		if (x == 1) {
+			for (y = 0; y < N; y++) {
+				W[x][y] = w2[y][0];
+			}
+		}
+		if (x == 2) {
+			for (y = 0; y < N; y++) {
+				W[x][y] = w3[y][0];
+			}
+		}
+	}
+	/*for (x = 0; x < N; x++) {
+		for (y = 0; y < N; y++) {
+			printf("%f ", T[x][y]);
+		}
+	}*/
+
+	//计算基线长度L
+	double L = 0.0;
+	for (k = 0; k < N; k++) {
+		L += pow((T[i - 1][k] - W[j - 1][k]), 2);
+	}
+	L = pow(L, 0.5);
+
+	//计算基线俯仰角
+	double A;
+	A = -asin((T[i-1][N-1] - W[j-1][N - 1]) / L);
+
+	//计算基线横摇角
+	double cy = T[i - 1][N - 2] - W[j - 1][N - 2];
+	double cx = T[i - 1][N - 3] - W[j - 1][N - 3];
+	double B = -atan(cy / cx);
+	printf("\n%f ", B );
+	system("pause");
+}
