@@ -1,0 +1,25 @@
+/*
+*	文件 名：矩阵乘法
+*	描		述：用于两个矩阵相乘
+*	作		者：金诸斌
+*	时		间：2019.11.14
+*/
+
+#include <stdio.h> 
+#include <math.h> 
+#include "matri.h"
+
+void matrix_mul(double *A, double *B, double *C, int x, int z, int y)
+{
+	int i, j, k;
+	for ( i = 0; i < x; i++)
+	{
+		for ( j = 0; j < y; j++)
+		{
+			for ( k = 0; k < z; k++)
+			{
+				C[i*y + j] += A[i*z + k] * B[k*y + j];
+			}
+		}
+	}
+}
