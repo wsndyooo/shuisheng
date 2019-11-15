@@ -1,0 +1,103 @@
+/*
+*	文件 名：合成基线定位算法
+*	描		述：
+*	作		者：金诸斌	
+*	时		间：2019.11.15
+*/
+
+/* 输入参数：1.头部水听器时延值：Delay_s1 ；尾部水听器时延值：Delay_s2 ；
+*           2.潜标位置坐标：（x, y, z） ；
+*           3.基线长度：L ；
+*           4.俯仰角：A ；横摇角：B ；
+*           5.头部水听器深度：z1； （原头部水听器距潜标高度：H ；（由头部水听器深度Z1和潜标z坐标计算得到）
+*           6.声速：C ；
+*           7.头部水听器上一个定位周期的x方向和y方向上的位置坐标： （xx, yy）；
+*           8.头部水听器通过陀螺仪、加速度计、多普勒速度仪推算出来的和前一时刻的位置差：dx，dy
+*
+* 输出参数：头部水听器三维位置坐标：A1 = （x1, y1, z1） ；尾部水听器三维位置坐标：A2 = （x2, y2, z2）；
+ *例子：SBL_Y(1925 ^ 0.5 / 1500, 1721 ^ 0.5 / 1500, 100, 100, 100, 6 ^ 0.5, asin(1 / 6 ^ 0.5), -pi + atan(0.5), 80, 1500, 70, 75, 0, 0)
+ */
+
+#include <stdio.h> 
+#include <math.h> 
+#include <stdlib.h> 
+
+#define PI 3.1415926535898
+
+double x = 25.5 - 0.023, y = 3.75 - 0.0398, z = 4.895;                //潜标位置坐标：（x, y, z）需手动定义
+double L = 3.0, A = 0.0, B = -PI/ 2;                        //实际中，该三个参数由AUV姿态计算得出，计算函数如：[L, a, r] = Length_Angle(a, b, r, a1, r1, a3, r3, i, j)
+double z1 = 4.4;                               //头部水听器深度，根据温盐深仪得到数据
+double C = 1498.0;                             //可根据声速剖面自行定义，也可由温盐深仪计算得到
+double xx = 11.6, yy = 2.25;                 //起始位置可由GPS定位给出
+double dx = 0.0, dy = 0.0;                            //首次迭代为零值，后续根据加速度计、多普勒速度仪计算值进行迭代
+double Delay_s1 = 0.0093, Delay_s2 = 0.0093;
+int main()
+//SBL_Y(double Delay_s1, double Delay_s2) 
+{
+	//求解中间变量
+	double R1 = Delay_s1 * C, R2 = Delay_s2 * C;
+	double H = z - z1;
+	double z2 = z1 + L * sin(A);
+
+	double TEMP;
+	TEMP = (pow(R1, 2) - pow(R2, 2) + pow(L, 2) - \
+		2 * L*H*sin(A)) / (2 * L*cos(A)*cos(B));
+	double Q;
+	Q = pow(R1, 2) - pow(H, 2) - pow(TEMP*cos(B), 2);
+	if (Q < 1E-6) Q = 0;
+
+	//求解两组定位解
+	double x1_1;
+	x1_1 = x + TEMP * pow(cos(B), 2) - sin(B)*sqrt(Q);
+	double y1_1;
+	y1_1 = y + TEMP * sin(B)*cos(B) + cos(B)*sqrt(Q);
+
+	double x2_1;
+	x2_1 = x + TEMP * pow(cos(B), 2) - sin(B)*sqrt(Q) - L * cos(A)*cos(B);
+	double y2_1;
+	y2_1 = y + TEMP * sin(B)*cos(B) + cos(B)*pow(cos(B), 2) - L * cos(A)*sin(B);
+
+	double x1_2;
+	x1_2 = x + TEMP * pow(cos(B), 2) + sin(B)*sqrt(Q);
+	double y1_2;
+	y1_2 = y + TEMP * sin(B)*cos(B) - cos(B)*sqrt(Q);
+
+	double x2_2;
+	x2_2 = x + TEMP * pow(cos(B), 2) + sin(B)*sqrt(Q) - L * cos(A)*cos(B);
+	double y2_2;
+	y2_2 = y + TEMP * sin(B)*cos(B) - cos(B)*sqrt(Q) - L * cos(A)*sin(B);
+
+	double dx1;
+	dx1 = sqrt( pow(x1_1 - (xx + dx), 2) + pow(y1_1 - (yy + dy), 2));
+	double dx2;
+	dx2 = sqrt( pow(x1_2 - (xx + dx), 2) + pow(y1_2 - (yy + dy), 2));
+
+	double A1[3] = { 0 }, A2[3] = { 0 };
+	double Location[2][3];
+	int i, j;
+	if (dx1 > dx2) {
+		A1[0] = x1_2; A1[1] = y1_2; A1[2] = z1;
+		A2[0] = x2_2; A2[1] = y2_2; A2[2] = z2;
+	}
+	else {
+		A1[0] = x1_1; A1[1] = y1_1; A1[2] = z1;
+		A2[0] = x2_1; A2[1] = y2_1; A2[2] = z2;
+	}
+	for (i = 0; i < 2; i++) {
+		if (i == 0) {
+			for (j = 0; j < 3; j++)
+				Location[i][j] = A1[j];
+		}
+		else {
+			for (j = 0; j < 3; j++)
+				Location[i][j] = A2[j];
+		}
+		
+	}
+	for (i = 0; i < 2; i++) {
+		for(j=0;j<3;j++)
+			printf("%f\n", Location[i][j]);
+	}
+	
+	system("pause");
+}
